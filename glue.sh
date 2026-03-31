@@ -219,6 +219,7 @@ NGINXEOF
     rm -f /etc/nginx/sites-enabled/default
 
     # proxy_cache_path needed if proxy_cache_valid is used
+    mkdir -p /var/cache/nginx/xray
     grep -q "proxy_cache_path" /etc/nginx/nginx.conf || \
         sed -i '/http {/a\\tproxy_cache_path /var/cache/nginx/xray levels=1:2 keys_zone=xray_cache:1m max_size=10m inactive=10m;' /etc/nginx/nginx.conf
 
