@@ -50,7 +50,7 @@ cmd_list() {
     elif [[ -f "$CONFIG" ]]; then
         warn "No saved links file found. Reading from config..."
         SERVER_IP=$(curl -s https://api.ipify.org)
-        SNI=$(grep -o '"dest": "[^"]*"' "$CONFIG" | head -1 | cut -d'"' -f4 | cut -d: -f1)
+        SNI=$(grep -o '"dest": "[^"]*"' "$CONFIG" | grep -v "127.0.0.1" | head -1 | cut -d'"' -f4 | cut -d: -f1)
         SHORT_ID=$(grep -o '"shortIds": \["[^"]*"' "$CONFIG" | grep -o '"[^"]*"$' | tr -d '"')
         UUIDS=($(grep -o '"id": "[^"]*"' "$CONFIG" | cut -d'"' -f4))
         PUBLIC_KEY=$(grep -o '"pbk=[^&]*"' "$OUTPUT_FILE" 2>/dev/null | head -1 | cut -d= -f2 | tr -d '"' || echo "unknown — rerun install to regenerate")
