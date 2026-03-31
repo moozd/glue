@@ -464,7 +464,12 @@ cmd_harden() {
         || echo "MaxAuthTries 3" >> "$SSHD_CONF"
 
     sshd -t || error "SSH config test failed — check $SSHD_CONF"
-    systemctl restart sshd
+    # Service name differs by distro
+    if systemctl list-units --type=service | grep -q "sshd.service"; then
+        systemctl restart sshd
+    else
+        systemctl restart ssh
+    fi
 
     # ── Print result ──────────────────────────────────────────────────────────
     echo ""
