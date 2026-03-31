@@ -338,14 +338,7 @@ cmd_install() {
     {"protocol": "blackhole", "tag": "block"}
   ],
   "routing": {
-    "domainStrategy": "IPIfNonMatch",
-    "rules": [
-      {
-        "type": "field",
-        "ip": ["geoip:private"],
-        "outboundTag": "block"
-      }
-    ]
+    "domainStrategy": "AsIs"
   }
 }
 EOF
