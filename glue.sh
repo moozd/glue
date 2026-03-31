@@ -342,7 +342,7 @@ cmd_install() {
     "rules": [
       {
         "type": "field",
-        "ip": ["geoip:private", "geoip:ir"],
+        "ip": ["geoip:private"],
         "outboundTag": "block"
       }
     ]
