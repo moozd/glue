@@ -27,12 +27,14 @@ usage() {
     echo -e "${BOLD}Usage:${NC} $0 <command> [options]"
     echo -e ""
     echo -e "${BOLD}Commands:${NC}"
-    echo -e "  ${CYAN}install <sni>${NC}   Install Xray + Nginx and configure with given SNI domain"
-    echo -e "  ${CYAN}list${NC}            Show existing VLESS configs and links"
-    echo -e "  ${CYAN}status${NC}          Live monitor — connected clients, bandwidth, errors"
+    echo -e "  ${CYAN}install <sni>${NC}         Install Xray + Nginx and configure with given SNI domain"
+    echo -e "  ${CYAN}harden [ssh-port]${NC}    Harden server: UFW firewall + non-standard SSH port"
+    echo -e "  ${CYAN}list${NC}                 Show existing VLESS configs and links"
+    echo -e "  ${CYAN}status${NC}               Live monitor — connected clients, bandwidth, errors"
     echo -e ""
     echo -e "${BOLD}Examples:${NC}"
     echo -e "  $0 install nobitex.ir"
+    echo -e "  $0 harden 2222"
     echo -e "  $0 list"
     echo -e "  $0 status"
     echo -e ""
@@ -403,9 +405,88 @@ EOF
     echo ""
 }
 
+# ─── Command: harden ─────────────────────────────────────────────────────────
+cmd_harden() {
+    local NEW_SSH_PORT="${1:-}"
+
+    # Pick a random port in the ephemeral range if none given
+    if [[ -z "$NEW_SSH_PORT" ]]; then
+        NEW_SSH_PORT=$(shuf -i 49152-65535 -n 1)
+        warn "No SSH port specified — using random port: $NEW_SSH_PORT"
+    fi
+
+    # Validate port
+    [[ "$NEW_SSH_PORT" =~ ^[0-9]+$ ]] || error "Invalid port: $NEW_SSH_PORT"
+    [[ "$NEW_SSH_PORT" -ge 1024 && "$NEW_SSH_PORT" -le 65535 ]] || error "Port must be between 1024 and 65535"
+
+    # ── Install UFW ───────────────────────────────────────────────────────────
+    info "Installing UFW..."
+    apt-get install -y ufw -qq
+
+    # ── Configure firewall BEFORE changing SSH port (avoid lockout) ──────────
+    info "Configuring UFW rules..."
+    ufw --force reset > /dev/null
+
+    ufw default deny incoming
+    ufw default allow outgoing
+
+    # New SSH port
+    ufw allow "${NEW_SSH_PORT}/tcp" comment "SSH"
+    # Xray REALITY
+    ufw allow 443/tcp comment "Xray REALITY"
+    # Block everything else including old port 22 (already denied by default)
+
+    ufw --force enable > /dev/null
+    info "UFW enabled"
+
+    # ── Harden SSH config ─────────────────────────────────────────────────────
+    info "Updating SSH config..."
+    local SSHD_CONF="/etc/ssh/sshd_config"
+
+    # Change port
+    if grep -q "^Port " "$SSHD_CONF"; then
+        sed -i "s/^Port .*/Port ${NEW_SSH_PORT}/" "$SSHD_CONF"
+    else
+        echo "Port ${NEW_SSH_PORT}" >> "$SSHD_CONF"
+    fi
+
+    # Disable password auth — key-only from here on
+    sed -i "s/^#*PasswordAuthentication.*/PasswordAuthentication no/" "$SSHD_CONF"
+    # Disable challenge-response auth
+    sed -i "s/^#*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/" "$SSHD_CONF"
+    # Reduce grace time
+    grep -q "^LoginGraceTime" "$SSHD_CONF" \
+        && sed -i "s/^LoginGraceTime.*/LoginGraceTime 30/" "$SSHD_CONF" \
+        || echo "LoginGraceTime 30" >> "$SSHD_CONF"
+    # Limit auth attempts
+    grep -q "^MaxAuthTries" "$SSHD_CONF" \
+        && sed -i "s/^MaxAuthTries.*/MaxAuthTries 3/" "$SSHD_CONF" \
+        || echo "MaxAuthTries 3" >> "$SSHD_CONF"
+
+    sshd -t || error "SSH config test failed — check $SSHD_CONF"
+    systemctl restart sshd
+
+    # ── Print result ──────────────────────────────────────────────────────────
+    echo ""
+    echo -e "${GREEN}${BOLD}========================================================"
+    echo "  Server Hardened"
+    echo -e "========================================================${NC}"
+    echo -e "  ${BOLD}New SSH port${NC}      : ${YELLOW}${NEW_SSH_PORT}${NC}"
+    echo -e "  ${BOLD}Password auth${NC}     : disabled (key only)"
+    echo -e "  ${BOLD}UFW${NC}               : enabled"
+    echo -e "  ${BOLD}Allowed inbound${NC}   : ${NEW_SSH_PORT}/tcp (SSH), 443/tcp (Xray)"
+    echo ""
+    echo -e "  ${RED}${BOLD}IMPORTANT:${NC} Your next SSH command:"
+    echo -e "  ${CYAN}ssh -p ${NEW_SSH_PORT} root@$(hostname -I | awk '{print $1}')${NC}"
+    echo ""
+    warn "Port 22 is now blocked. Do not close this session until you verify the new port works."
+    echo ""
+}
+
 # ─── Router ───────────────────────────────────────────────────────────────────
 case "${1:-}" in
     install) cmd_install "$2" ;;
+    harden)  cmd_harden "$2" ;;
     list)    cmd_list ;;
     status)  cmd_status ;;
     *)       usage ;;
