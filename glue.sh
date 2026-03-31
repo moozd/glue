@@ -334,8 +334,7 @@ cmd_install() {
     }
   ],
   "outbounds": [
-    {"protocol": "freedom", "tag": "direct"},
-    {"protocol": "blackhole", "tag": "block"}
+    {"protocol": "freedom", "tag": "direct"}
   ],
   "routing": {
     "domainStrategy": "AsIs"
