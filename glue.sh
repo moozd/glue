@@ -276,8 +276,8 @@ cmd_install() {
     # ── Generate keys ─────────────────────────────────────────────────────────
     info "Generating keys..."
     KEYS=$(xray x25519)
-    PRIVATE_KEY=$(echo "$KEYS" | grep -oE '[A-Za-z0-9+/=_-]{40,}' | sed -n '1p')
-    PUBLIC_KEY=$(echo "$KEYS"  | grep -oE '[A-Za-z0-9+/=_-]{40,}' | sed -n '2p')
+    PRIVATE_KEY=$(echo "$KEYS" | grep "^PrivateKey:" | awk '{print $2}')
+    PUBLIC_KEY=$(echo "$KEYS"  | grep "^Password"    | awk '{print $NF}')
 
     [[ -z "$PRIVATE_KEY" ]] && error "Failed to extract private key. xray x25519 output was: $KEYS"
     [[ -z "$PUBLIC_KEY"  ]] && error "Failed to extract public key. xray x25519 output was: $KEYS"
