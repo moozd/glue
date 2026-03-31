@@ -82,7 +82,7 @@ cmd_status() {
     while true; do
         NOW=$(date '+%Y-%m-%d %H:%M:%S')
         SERVER_IP=$(hostname -I | awk '{print $1}')
-        SNI=$(grep -o '"dest": "[^"]*"' "$CONFIG" 2>/dev/null | head -1 | cut -d'"' -f4 | cut -d: -f1)
+        SNI=$(grep -o '"dest": "[^"]*"' "$CONFIG" 2>/dev/null | grep -v "127.0.0.1" | head -1 | cut -d'"' -f4 | cut -d: -f1)
 
         if systemctl is-active --quiet xray; then
             XRAY_STATUS="${GREEN}running${NC}"
