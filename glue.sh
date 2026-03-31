@@ -252,9 +252,8 @@ cmd_install() {
         error "$SNI:443 is not reachable from this server"
     fi
 
-    TLS_VERSION=$(echo | timeout 5 openssl s_client -connect "$SNI:443" -tls1_3 2>&1 | grep "Protocol" | awk '{print $3}')
-    if [[ "$TLS_VERSION" != "TLSv1.3" ]]; then
-        error "$SNI does not support TLS 1.3 (required for REALITY)"
+    if ! echo | timeout 5 openssl s_client -connect "$SNI:443" 2>&1 | grep -q "TLSv1.3"; then
+        error "$SNI does not support TLS 1.3 or is unreachable from this server (geo-blocked?). The SNI must be reachable FROM the VPS. Try: www.samsung.com, www.microsoft.com, www.apple.com"
     fi
 
     info "SNI verified: reachable and supports TLS 1.3"
